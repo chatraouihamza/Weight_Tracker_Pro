@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="meal_types">
+        <item>Breakfast</item>
+        <item>Lunch</item>
+        <item>Dinner</item>
+        <item>Snack</item>
+    </string-array>
+
+    <string-array name="goal_types">
+        <item>Lose Weight</item>
+        <item>Gain Weight</item>
+        <item>Maintain Weight</item>
+    </string-array>
+</resources>
