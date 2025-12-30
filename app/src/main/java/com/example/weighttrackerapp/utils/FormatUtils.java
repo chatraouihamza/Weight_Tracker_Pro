@@ -13,35 +13,42 @@ public class FormatUtils {
     private static final SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm", Locale.getDefault());
     private static final SimpleDateFormat dateTimeFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault());
     private static final SimpleDateFormat chartDateFormat = new SimpleDateFormat("dd MMM", Locale.getDefault());
-    
+
+
+    /**
+     * Format timestamp to string (dd/MM/yyyy).
+     */
+    public static String formatDate(long timestamp) {
+        return dateFormat.format(new Date(timestamp));
+    }
+
+    /**
+     * Format timestamp to string (HH:mm).
+     */
+    public static String formatTime(long timestamp) {
+        return timeFormat.format(new Date(timestamp));
+    }
+
+    /**
+     * Format timestamp to string (dd/MM/yyyy HH:mm).
+     */
+    public static String formatDateTime(long timestamp) {
+        return dateTimeFormat.format(new Date(timestamp));
+    }
+
     /**
      * Format date to string (dd/MM/yyyy).
      */
     public static String formatDate(Date date) {
         return date != null ? dateFormat.format(date) : "";
     }
-    
+
     /**
-     * Format time to string (HH:mm).
+     * Format timestamp (long) for chart display (dd MMM).
      */
-    public static String formatTime(Date date) {
-        return date != null ? timeFormat.format(date) : "";
+    public static String formatChartDate(long timestamp) {
+        return chartDateFormat.format(new Date(timestamp));
     }
-    
-    /**
-     * Format date and time to string (dd/MM/yyyy HH:mm).
-     */
-    public static String formatDateTime(Date date) {
-        return date != null ? dateTimeFormat.format(date) : "";
-    }
-    
-    /**
-     * Format date for chart display (dd MMM).
-     */
-    public static String formatChartDate(Date date) {
-        return date != null ? chartDateFormat.format(date) : "";
-    }
-    
     /**
      * Format weight value with 2 decimal places.
      */

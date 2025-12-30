@@ -1,129 +1,430 @@
 package com.example.weighttrackerapp.fragments;
 
+import android.app.AlertDialog;
 import android.app.DatePickerDialog;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
-import android.widget.EditText;
 import android.widget.DatePicker;
+import android.widget.EditText;
+import android.widget.ImageButton;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 import android.widget.Toast;
-import androidx.recyclerview.widget.RecyclerView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
-import androidx.recyclerview.widget.LinearLayoutManager;
 
 import com.example.weighttrackerapp.R;
-import com.example.weighttrackerapp.viewmodels.WeightTrackingViewModel;
-import com.example.weighttrackerapp.adapters.WeightEntryAdapter;
+import com.example.weighttrackerapp.models.Goal;
+import com.example.weighttrackerapp.models.Measurement;
+import com.example.weighttrackerapp.models.UserProfile;
 import com.example.weighttrackerapp.models.WeightEntry;
+import com.example.weighttrackerapp.utils.FormatUtils;
+import com.example.weighttrackerapp.utils.HealthCalculator;
+import com.example.weighttrackerapp.viewmodels.DashboardViewModel;
+import com.example.weighttrackerapp.viewmodels.WeightTrackingViewModel;
+import com.github.mikephil.charting.charts.LineChart;
+import com.github.mikephil.charting.components.XAxis;
+import com.github.mikephil.charting.data.Entry;
+import com.github.mikephil.charting.data.LineData;
+import com.github.mikephil.charting.data.LineDataSet;
+import com.github.mikephil.charting.formatter.ValueFormatter;
+import com.github.mikephil.charting.interfaces.datasets.ILineDataSet;
+import com.google.android.material.chip.ChipGroup;
 
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Date;
+import java.util.List;
+import java.util.Locale;
 
-/**
- * Weight Tracking Fragment - Log and view weight entries.
- */
-public class WeightTrackingFragment extends Fragment implements DatePickerDialog.OnDateSetListener {
-    
+public class WeightTrackingFragment extends Fragment {
+
     private WeightTrackingViewModel viewModel;
-    private EditText etWeight, etNotes;
-    private Button btnAddWeight, btnSelectDate;
-    private RecyclerView rvWeightEntries;
-    private WeightEntryAdapter adapter;
-    private Date selectedDate;
-    
+    private DashboardViewModel dashboardViewModel;
+
+    // UI Components
+    private LineChart chart;
+    private ChipGroup chipGroupTimeframe;
+    private TextView tvBmi, tvChange, tvAvg, tvProgress;
+    private TextView tvMeasWaist, tvMeasFat, tvMeasRatio;
+
+    // Navigation UI (Arrows)
+    private LinearLayout layoutDateNav;
+    private ImageButton btnPrev, btnNext;
+    private TextView tvDateRangeLabel;
+
+    // Action Buttons
+    private Button btnLogWeight, btnLogMeasure;
+
+    // Data
+    private List<WeightEntry> allEntries = new ArrayList<>();
+    private Goal currentGoal;
+    private UserProfile userProfile;
+
+    // Time Navigation State
+    private static final int SCOPE_1M = 1;
+    private static final int SCOPE_6M = 2;
+    private static final int SCOPE_1Y = 3;
+    private static final int SCOPE_ALL = 4;
+
+    private int currentScope = SCOPE_ALL;
+    private Calendar calendarCursor; // Points to the current view window
+
+    // Temporary State for Dialogs
+    private Date tempDate;
+
     @Nullable
     @Override
-    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, 
-                           @Nullable Bundle savedInstanceState) {
+    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         return inflater.inflate(R.layout.fragment_weight_tracking, container, false);
     }
-    
+
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        
+
+        // Initialize Cursor to Today
+        calendarCursor = Calendar.getInstance();
+
         initializeViews(view);
-        setupViewModel();
-        setupRecyclerView();
+        setupChartConfig();
+        setupViewModels();
         setupListeners();
-        observeData();
     }
-    
+
     private void initializeViews(View view) {
-        etWeight = view.findViewById(R.id.et_weight);
-        etNotes = view.findViewById(R.id.et_notes);
-        btnAddWeight = view.findViewById(R.id.btn_add_weight);
-        btnSelectDate = view.findViewById(R.id.btn_select_date);
-        rvWeightEntries = view.findViewById(R.id.rv_weight_entries);
-        selectedDate = new Date();
+        chart = view.findViewById(R.id.chart_weight);
+        chipGroupTimeframe = view.findViewById(R.id.chip_group_timeframe);
+
+        // Stats
+        tvBmi = view.findViewById(R.id.tv_stat_bmi);
+        tvChange = view.findViewById(R.id.tv_stat_change);
+        tvAvg = view.findViewById(R.id.tv_stat_avg);
+        tvProgress = view.findViewById(R.id.tv_stat_progress);
+
+        // Measurements
+        tvMeasWaist = view.findViewById(R.id.tv_meas_waist);
+        tvMeasFat = view.findViewById(R.id.tv_meas_fat);
+        tvMeasRatio = view.findViewById(R.id.tv_meas_ratio);
+
+        // Navigation (Ensure these IDs exist in your XML)
+        layoutDateNav = view.findViewById(R.id.layout_date_nav);
+        btnPrev = view.findViewById(R.id.btn_prev_date);
+        btnNext = view.findViewById(R.id.btn_next_date);
+        tvDateRangeLabel = view.findViewById(R.id.tv_date_range_label);
+
+        // Buttons
+        btnLogWeight = view.findViewById(R.id.btn_action_weight);
+        btnLogMeasure = view.findViewById(R.id.btn_action_measure);
     }
-    
-    private void setupViewModel() {
+
+    private void setupViewModels() {
         viewModel = new ViewModelProvider(this).get(WeightTrackingViewModel.class);
+        dashboardViewModel = new ViewModelProvider(requireActivity()).get(DashboardViewModel.class);
+
+        // 1. Weight Data
+        viewModel.getAllWeightEntries().observe(getViewLifecycleOwner(), entries -> {
+            if (entries != null) {
+                Collections.sort(entries, Comparator.comparingLong(WeightEntry::getDate));
+                allEntries = entries;
+                updateChartAndStats();
+            }
+        });
+
+        // 2. Goal
+        viewModel.getActiveGoal().observe(getViewLifecycleOwner(), goal -> {
+            currentGoal = goal;
+            updateChartAndStats();
+        });
+
+        // 3. Profile
+        dashboardViewModel.getUserProfile().observe(getViewLifecycleOwner(), profile -> {
+            userProfile = profile;
+            updateChartAndStats();
+        });
+
+        // 4. Measurements
+        viewModel.getLatestMeasurement().observe(getViewLifecycleOwner(), this::updateMeasurementUI);
     }
-    
-    private void setupRecyclerView() {
-        adapter = new WeightEntryAdapter();
-        rvWeightEntries.setLayoutManager(new LinearLayoutManager(getContext()));
-        rvWeightEntries.setAdapter(adapter);
+
+    private void setupChartConfig() {
+        chart.setDescription(null);
+        chart.setDragEnabled(true);
+        chart.setScaleEnabled(true);
+        chart.setPinchZoom(true);
+        chart.setDrawGridBackground(false);
+        chart.setExtraBottomOffset(10f);
+        chart.getAxisRight().setEnabled(false);
+
+        XAxis xAxis = chart.getXAxis();
+        xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
+        xAxis.setGranularity(1f);
+        xAxis.setValueFormatter(new ValueFormatter() {
+            @Override
+            public String getFormattedValue(float value) {
+                return FormatUtils.formatChartDate((long) value);
+            }
+        });
+        xAxis.setLabelRotationAngle(-45);
     }
-    
+
     private void setupListeners() {
-        btnAddWeight.setOnClickListener(v -> addWeightEntry());
-        btnSelectDate.setOnClickListener(v -> showDatePicker());
+        // Chip Group Listener
+        chipGroupTimeframe.setOnCheckedStateChangeListener((group, checkedIds) -> {
+            int id = group.getCheckedChipId();
+            // Reset cursor to today when changing filters
+            calendarCursor = Calendar.getInstance();
+
+            if (id == R.id.chip_1m) currentScope = SCOPE_1M;
+            else if (id == R.id.chip_6m) currentScope = SCOPE_6M;
+            else if (id == R.id.chip_1y) currentScope = SCOPE_1Y;
+            else currentScope = SCOPE_ALL;
+
+            updateChartAndStats();
+        });
+
+        // Navigation Arrows
+        if (btnPrev != null) btnPrev.setOnClickListener(v -> shiftDateWindow(-1));
+        if (btnNext != null) btnNext.setOnClickListener(v -> shiftDateWindow(1));
+
+        // Buttons
+        btnLogWeight.setOnClickListener(v -> showWeightDialog());
+        btnLogMeasure.setOnClickListener(v -> showMeasurementDialog());
     }
-    
-    private void addWeightEntry() {
-        String weightStr = etWeight.getText().toString().trim();
-        String notes = etNotes.getText().toString().trim();
-        
-        if (weightStr.isEmpty()) {
-            Toast.makeText(getContext(), "Please enter weight", Toast.LENGTH_SHORT).show();
+
+    private void shiftDateWindow(int direction) {
+        if (currentScope == SCOPE_1M) {
+            calendarCursor.add(Calendar.MONTH, direction);
+        } else if (currentScope == SCOPE_6M) {
+            calendarCursor.add(Calendar.MONTH, direction * 6);
+        } else if (currentScope == SCOPE_1Y) {
+            calendarCursor.add(Calendar.YEAR, direction);
+        }
+        updateChartAndStats();
+    }
+
+    // --- CHART & STATS LOGIC ---
+    private void updateChartAndStats() {
+        if (allEntries.isEmpty()) {
+            chart.clear();
             return;
         }
-        
-        try {
-            double weight = Double.parseDouble(weightStr);
-            WeightEntry entry = new WeightEntry(weight, selectedDate, notes);
-            viewModel.insertWeightEntry(entry);
-            
-            etWeight.setText("");
-            etNotes.setText("");
-            selectedDate = new Date();
-            
-            Toast.makeText(getContext(), "Weight entry added successfully", Toast.LENGTH_SHORT).show();
-        } catch (NumberFormatException e) {
-            Toast.makeText(getContext(), "Invalid weight value", Toast.LENGTH_SHORT).show();
+
+        // 1. Calculate Start/End based on Cursor
+        long startTime = 0;
+        long endTime = Long.MAX_VALUE;
+        SimpleDateFormat sdf = new SimpleDateFormat("MMM yyyy", Locale.getDefault());
+
+        if (currentScope != SCOPE_ALL && layoutDateNav != null) {
+            layoutDateNav.setVisibility(View.VISIBLE);
+
+            Calendar endCal = (Calendar) calendarCursor.clone();
+            endCal.set(Calendar.HOUR_OF_DAY, 23);
+            endCal.set(Calendar.MINUTE, 59);
+            endTime = endCal.getTimeInMillis();
+
+            Calendar startCal = (Calendar) calendarCursor.clone();
+            startCal.set(Calendar.HOUR_OF_DAY, 0);
+            startCal.set(Calendar.MINUTE, 0);
+
+            if (currentScope == SCOPE_1M) {
+                // Whole Month (e.g., Oct 1 - Oct 31)
+                startCal.set(Calendar.DAY_OF_MONTH, 1);
+                endCal.set(Calendar.DAY_OF_MONTH, endCal.getActualMaximum(Calendar.DAY_OF_MONTH));
+                endTime = endCal.getTimeInMillis();
+                tvDateRangeLabel.setText(sdf.format(calendarCursor.getTime()));
+
+            } else if (currentScope == SCOPE_6M) {
+                startCal.add(Calendar.MONTH, -5);
+                tvDateRangeLabel.setText(sdf.format(startCal.getTime()) + " - " + sdf.format(calendarCursor.getTime()));
+
+            } else if (currentScope == SCOPE_1Y) {
+                startCal.set(Calendar.DAY_OF_YEAR, 1);
+                SimpleDateFormat yearFmt = new SimpleDateFormat("yyyy", Locale.getDefault());
+                tvDateRangeLabel.setText(yearFmt.format(calendarCursor.getTime()));
+            }
+            startTime = startCal.getTimeInMillis();
+        } else if (layoutDateNav != null) {
+            layoutDateNav.setVisibility(View.GONE);
+        }
+
+        // 2. Filter List
+        List<WeightEntry> filteredList = new ArrayList<>();
+        double sum = 0;
+        for (WeightEntry w : allEntries) {
+            if (w.getDate() >= startTime && w.getDate() <= endTime) {
+                filteredList.add(w);
+                sum += w.getWeight();
+            }
+        }
+
+        if (filteredList.isEmpty()) {
+            chart.clear();
+            chart.setNoDataText("No data for this period");
+            chart.invalidate();
+            tvAvg.setText("--");
+            tvChange.setText("--");
+            return;
+        }
+
+        // 3. Stats
+        WeightEntry latest = filteredList.get(filteredList.size() - 1);
+        WeightEntry oldest = filteredList.get(0);
+
+        double avg = sum / filteredList.size();
+        tvAvg.setText(FormatUtils.formatWeight(avg) + " kg");
+
+        double change = latest.getWeight() - oldest.getWeight();
+        String sign = change > 0 ? "+" : "";
+        tvChange.setText(sign + FormatUtils.formatWeight(change) + " kg");
+        tvChange.setTextColor(change <= 0 ? getResources().getColor(R.color.success_blue, null) : getResources().getColor(R.color.warning_orange, null));
+
+        if (userProfile != null && userProfile.getHeight() > 0) {
+            double bmi = HealthCalculator.calculateBMI(latest.getWeight(), userProfile.getHeight());
+            tvBmi.setText(FormatUtils.formatBMI(bmi));
+        }
+
+        if (currentGoal != null) tvProgress.setText(currentGoal.getProgressPercentage() + "%");
+        else tvProgress.setText("N/A");
+
+        // 4. Draw
+        drawChart(filteredList, latest);
+    }
+
+    private void drawChart(List<WeightEntry> filteredList, WeightEntry latestEntry) {
+        // A. Real Data
+        List<Entry> realValues = new ArrayList<>();
+        for (WeightEntry w : filteredList) {
+            realValues.add(new Entry((float) w.getDate(), (float) w.getWeight()));
+        }
+
+        LineDataSet setReal = new LineDataSet(realValues, "Weight");
+        setReal.setColor(getResources().getColor(R.color.primary_green, null));
+        setReal.setCircleColor(getResources().getColor(R.color.primary_green, null));
+        setReal.setLineWidth(3f);
+        setReal.setDrawValues(false);
+        setReal.setDrawCircles(filteredList.size() < 20);
+        setReal.setMode(LineDataSet.Mode.CUBIC_BEZIER);
+        setReal.setDrawFilled(true);
+        setReal.setFillColor(getResources().getColor(R.color.primary_light, null));
+
+        // B. Dynamic Prediction
+        // Draws line from LATEST ENTRY to TARGET
+        List<Entry> predictValues = new ArrayList<>();
+        if (currentGoal != null && latestEntry != null) {
+            if (currentGoal.getTargetDate() > latestEntry.getDate()) {
+                predictValues.add(new Entry((float) latestEntry.getDate(), (float) latestEntry.getWeight()));
+                predictValues.add(new Entry((float) currentGoal.getTargetDate(), (float) currentGoal.getTargetWeight()));
+            }
+        }
+
+        LineDataSet setPredict = new LineDataSet(predictValues, "Goal Path");
+        setPredict.setColor(Color.GRAY);
+        setPredict.enableDashedLine(10f, 10f, 0f);
+        setPredict.setLineWidth(2f);
+        setPredict.setDrawCircles(false);
+        setPredict.setDrawValues(false);
+
+        ArrayList<ILineDataSet> sets = new ArrayList<>();
+        sets.add(setReal);
+        if (!predictValues.isEmpty()) sets.add(setPredict);
+
+        LineData data = new LineData(sets);
+        chart.setData(data);
+        chart.fitScreen(); // Snap to data
+        chart.invalidate();
+        chart.animateX(500);
+    }
+
+    // --- DIALOGS ---
+    private void showWeightDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
+        View view = LayoutInflater.from(getContext()).inflate(R.layout.dialog_add_weight, null);
+
+        EditText etW = view.findViewById(R.id.et_dialog_weight);
+        Button btnD = view.findViewById(R.id.btn_dialog_date);
+
+        tempDate = new Date();
+        btnD.setText("Date: " + FormatUtils.formatDate(tempDate));
+
+        btnD.setOnClickListener(v -> {
+            Calendar c = Calendar.getInstance();
+            c.setTime(tempDate);
+            new DatePickerDialog(getContext(), (view1, year, month, dayOfMonth) -> {
+                Calendar newDate = Calendar.getInstance();
+                newDate.set(year, month, dayOfMonth);
+                tempDate = newDate.getTime();
+                btnD.setText("Date: " + FormatUtils.formatDate(tempDate));
+            }, c.get(Calendar.YEAR), c.get(Calendar.MONTH), c.get(Calendar.DAY_OF_MONTH)).show();
+        });
+
+        builder.setView(view)
+                .setPositiveButton("Save", (dialog, which) -> {
+                    try {
+                        double weight = Double.parseDouble(etW.getText().toString());
+                        viewModel.addNewWeight(weight, tempDate.getTime(), "");
+                        Toast.makeText(getContext(), "Weight Logged", Toast.LENGTH_SHORT).show();
+                    } catch (NumberFormatException e) {
+                        Toast.makeText(getContext(), "Invalid weight", Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void showMeasurementDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
+        View view = LayoutInflater.from(getContext()).inflate(R.layout.dialog_add_measurement, null);
+
+        EditText etWaist = view.findViewById(R.id.et_waist);
+        EditText etHips = view.findViewById(R.id.et_hips);
+        EditText etFat = view.findViewById(R.id.et_bodyfat);
+
+        builder.setView(view)
+                .setPositiveButton("Save", (dialog, which) -> {
+                    try {
+                        double waist = parseDouble(etWaist.getText().toString());
+                        double hips = parseDouble(etHips.getText().toString());
+                        double fat = parseDouble(etFat.getText().toString());
+
+                        if (waist > 0) {
+                            viewModel.addMeasurement(waist, hips, fat);
+                            Toast.makeText(getContext(), "Stats Updated", Toast.LENGTH_SHORT).show();
+                        }
+                    } catch (Exception e) {
+                        Toast.makeText(getContext(), "Invalid Input", Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void updateMeasurementUI(Measurement m) {
+        if (m != null) {
+            tvMeasWaist.setText(FormatUtils.formatWeight(m.getWaist()) + " cm");
+            tvMeasFat.setText(m.getBodyFat() > 0 ? FormatUtils.formatWeight(m.getBodyFat()) + " %" : "--");
+            double ratio = m.getWaistToHipRatio();
+            if (ratio > 0) {
+                String risk = ratio > 0.90 ? "High Risk" : (ratio > 0.85 ? "Mod. Risk" : "Healthy");
+                tvMeasRatio.setText(String.format("%.2f (%s)", ratio, risk));
+            } else {
+                tvMeasRatio.setText("--");
+            }
         }
     }
-    
-    private void showDatePicker() {
-        Calendar calendar = Calendar.getInstance();
-        calendar.setTime(selectedDate);
-        
-        new DatePickerDialog(getContext(), this,
-                calendar.get(Calendar.YEAR),
-                calendar.get(Calendar.MONTH),
-                calendar.get(Calendar.DAY_OF_MONTH)).show();
-    }
-    
-    @Override
-    public void onDateSet(DatePicker view, int year, int month, int dayOfMonth) {
-        Calendar calendar = Calendar.getInstance();
-        calendar.set(year, month, dayOfMonth);
-        selectedDate = calendar.getTime();
-        btnSelectDate.setText("Date: " + android.text.format.DateFormat.format("dd/MM/yyyy", selectedDate));
-    }
-    
-    private void observeData() {
-        viewModel.getAllWeightEntries().observe(getViewLifecycleOwner(), entries -> {
-            adapter.submitList(entries);
-        });
+
+    private double parseDouble(String val) {
+        if (val == null || val.isEmpty()) return 0.0;
+        return Double.parseDouble(val);
     }
 }

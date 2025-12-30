@@ -1,124 +1,80 @@
 package com.example.weighttrackerapp.models;
 
+import androidx.room.ColumnInfo;
 import androidx.room.Entity;
 import androidx.room.Ignore;
 import androidx.room.PrimaryKey;
 import java.io.Serializable;
-import java.util.Date;
 
-/**
- * ActivityEntry model representing physical activity entries.
- */
 @Entity(tableName = "activity_entries")
 public class ActivityEntry implements Serializable {
+
+    // --- Constants for Type Safety ---
+    public static final String INTENSITY_LOW = "Low";
+    public static final String INTENSITY_MEDIUM = "Medium";
+    public static final String INTENSITY_HIGH = "High";
+
+    public static final String TYPE_RUNNING = "Running";
+    public static final String TYPE_WALKING = "Walking";
+    public static final String TYPE_GYM = "Gym";
+    public static final String TYPE_CYCLING = "Cycling";
+    public static final String TYPE_SWIMMING = "Swimming";
+
     @PrimaryKey(autoGenerate = true)
     private int id;
-    
-    private String activityType; // RUNNING, CYCLING, SWIMMING, GYM, YOGA, etc.
-    private Date date;
+
+    @ColumnInfo(name = "user_id")
+    private int userId;
+    @ColumnInfo(name = "activity_type")
+    private String activityType;
+
+    @ColumnInfo(name = "date_timestamp")
+    private long date;
+
     private int duration; // in minutes
+
+    @ColumnInfo(name = "calories_burned")
     private int caloriesBurned;
-    private String intensity; // LOW, MEDIUM, HIGH
-    private double distance; // in km
-    private String notes;
-    private int heartRate; // average heart rate
-    
-    // Constructors
-    public ActivityEntry() {
-    }
-    
+
+    private String intensity; // Use Constants
+
+    @ColumnInfo(name = "heart_rate")
+    private int heartRate; // average bpm
+
+    // Empty Constructor
+    public ActivityEntry() {}
+
     @Ignore
-    public ActivityEntry(String activityType, Date date, int duration, 
-                        int caloriesBurned, String intensity) {
+    public ActivityEntry(String activityType, long date, int duration,
+                         int caloriesBurned, String intensity) {
         this.activityType = activityType;
         this.date = date;
         this.duration = duration;
         this.caloriesBurned = caloriesBurned;
         this.intensity = intensity;
     }
-    
-    // Getters and Setters
-    public int getId() {
-        return id;
-    }
-    
-    public void setId(int id) {
-        this.id = id;
-    }
-    
-    public String getActivityType() {
-        return activityType;
-    }
-    
-    public void setActivityType(String activityType) {
-        this.activityType = activityType;
-    }
-    
-    public Date getDate() {
-        return date;
-    }
-    
-    public void setDate(Date date) {
-        this.date = date;
-    }
-    
-    public int getDuration() {
-        return duration;
-    }
-    
-    public void setDuration(int duration) {
-        this.duration = duration;
-    }
-    
-    public int getCaloriesBurned() {
-        return caloriesBurned;
-    }
-    
-    public void setCaloriesBurned(int caloriesBurned) {
-        this.caloriesBurned = caloriesBurned;
-    }
-    
-    public String getIntensity() {
-        return intensity;
-    }
-    
-    public void setIntensity(String intensity) {
-        this.intensity = intensity;
-    }
-    
-    public double getDistance() {
-        return distance;
-    }
-    
-    public void setDistance(double distance) {
-        this.distance = distance;
-    }
-    
-    public String getNotes() {
-        return notes;
-    }
-    
-    public void setNotes(String notes) {
-        this.notes = notes;
-    }
-    
-    public int getHeartRate() {
-        return heartRate;
-    }
-    
-    public void setHeartRate(int heartRate) {
-        this.heartRate = heartRate;
-    }
-    
-    @Override
-    public String toString() {
-        return "ActivityEntry{" +
-                "id=" + id +
-                ", activityType='" + activityType + '\'' +
-                ", date=" + date +
-                ", duration=" + duration +
-                ", caloriesBurned=" + caloriesBurned +
-                ", intensity='" + intensity + '\'' +
-                '}';
-    }
+
+    // --- Getters and Setters ---
+    public int getId() { return id; }
+    public void setId(int id) { this.id = id; }
+
+    public int getUserId() { return userId; }
+    public void setUserId(int userId) { this.userId = userId; }
+    public String getActivityType() { return activityType; }
+    public void setActivityType(String activityType) { this.activityType = activityType; }
+
+    public long getDate() { return date; }
+    public void setDate(long date) { this.date = date; }
+
+    public int getDuration() { return duration; }
+    public void setDuration(int duration) { this.duration = duration; }
+
+    public int getCaloriesBurned() { return caloriesBurned; }
+    public void setCaloriesBurned(int caloriesBurned) { this.caloriesBurned = caloriesBurned; }
+
+    public String getIntensity() { return intensity; }
+    public void setIntensity(String intensity) { this.intensity = intensity; }
+
+    public int getHeartRate() { return heartRate; }
+    public void setHeartRate(int heartRate) { this.heartRate = heartRate; }
 }

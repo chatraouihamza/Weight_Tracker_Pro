@@ -9,48 +9,37 @@ import androidx.room.Update;
 
 import com.example.weighttrackerapp.models.FoodEntry;
 
-import java.util.Date;
 import java.util.List;
 
-/**
- * Data Access Object (DAO) for FoodEntry entities.
- */
 @Dao
 public interface FoodEntryDao {
-    
+
     @Insert
-    long insert(FoodEntry foodEntry);
-    
+    void insert(FoodEntry foodEntry);
+
     @Update
     void update(FoodEntry foodEntry);
-    
+
     @Delete
     void delete(FoodEntry foodEntry);
-    
-    @Query("SELECT * FROM food_entries ORDER BY date DESC")
-    LiveData<List<FoodEntry>> getAllFoodEntries();
-    
-    @Query("SELECT * FROM food_entries WHERE id = :id")
-    LiveData<FoodEntry> getFoodEntryById(int id);
-    
-    @Query("SELECT * FROM food_entries WHERE date(date) = date(:date) ORDER BY date DESC")
-    LiveData<List<FoodEntry>> getFoodEntriesByDate(Date date);
-    
-    @Query("SELECT * FROM food_entries WHERE date BETWEEN :startDate AND :endDate ORDER BY date DESC")
-    LiveData<List<FoodEntry>> getFoodEntriesBetweenDates(Date startDate, Date endDate);
-    
-    @Query("SELECT SUM(calories) FROM food_entries WHERE date(date) = date(:date)")
-    LiveData<Integer> getTotalCaloriesByDate(Date date);
-    
-    @Query("SELECT SUM(protein) FROM food_entries WHERE date(date) = date(:date)")
-    LiveData<Double> getTotalProteinByDate(Date date);
-    
-    @Query("SELECT SUM(carbs) FROM food_entries WHERE date(date) = date(:date)")
-    LiveData<Double> getTotalCarbsByDate(Date date);
-    
-    @Query("SELECT SUM(fat) FROM food_entries WHERE date(date) = date(:date)")
-    LiveData<Double> getTotalFatByDate(Date date);
-    
-    @Query("DELETE FROM food_entries")
-    void deleteAll();
+
+    // Get entries for a specific day range AND specific user
+    @Query("SELECT * FROM food_entries WHERE user_id = :userId AND date_timestamp BETWEEN :startTime AND :endTime ORDER BY date_timestamp DESC")
+    LiveData<List<FoodEntry>> getFoodEntriesForDay(int userId, long startTime, long endTime);
+
+    // Sum macros for a specific day range AND specific user
+    @Query("SELECT SUM(calories) FROM food_entries WHERE user_id = :userId AND date_timestamp BETWEEN :startTime AND :endTime")
+    LiveData<Integer> getTotalCaloriesForDay(int userId, long startTime, long endTime);
+
+    @Query("SELECT SUM(protein) FROM food_entries WHERE user_id = :userId AND date_timestamp BETWEEN :startTime AND :endTime")
+    LiveData<Double> getTotalProteinForDay(int userId, long startTime, long endTime);
+
+    @Query("SELECT SUM(carbs) FROM food_entries WHERE user_id = :userId AND date_timestamp BETWEEN :startTime AND :endTime")
+    LiveData<Double> getTotalCarbsForDay(int userId, long startTime, long endTime);
+
+    @Query("SELECT SUM(fat) FROM food_entries WHERE user_id = :userId AND date_timestamp BETWEEN :startTime AND :endTime")
+    LiveData<Double> getTotalFatForDay(int userId, long startTime, long endTime);
+
+    @Query("DELETE FROM food_entries WHERE user_id = :userId")
+    void deleteAll(int userId);
 }

@@ -11,36 +11,36 @@ import com.example.weighttrackerapp.models.Goal;
 
 import java.util.List;
 
-/**
- * Data Access Object (DAO) for Goal entities.
- */
 @Dao
 public interface GoalDao {
-    
+
     @Insert
-    long insert(Goal goal);
-    
+    void insert(Goal goal);
+
     @Update
     void update(Goal goal);
-    
+
     @Delete
     void delete(Goal goal);
-    
-    @Query("SELECT * FROM goals ORDER BY targetDate ASC")
-    LiveData<List<Goal>> getAllGoals();
-    
+
+    @Query("SELECT * FROM goals WHERE user_id = :userId ORDER BY target_date ASC")
+    LiveData<List<Goal>> getAllGoals(int userId);
+
     @Query("SELECT * FROM goals WHERE id = :id")
-    LiveData<Goal> getGoalById(int id);
-    
-    @Query("SELECT * FROM goals WHERE isCompleted = 0 ORDER BY targetDate ASC")
-    LiveData<List<Goal>> getActiveGoals();
-    
-    @Query("SELECT * FROM goals WHERE isCompleted = 1 ORDER BY completedDate DESC")
-    LiveData<List<Goal>> getCompletedGoals();
-    
-    @Query("DELETE FROM goals")
-    void deleteAll();
-    
-    @Query("SELECT COUNT(*) FROM goals WHERE isCompleted = 0")
-    LiveData<Integer> getActiveGoalsCount();
+    LiveData<Goal> getGoalById(int id); // ID is unique globally, so strictly no need for user_id here, but good practice to verify ownership logic layer
+
+    @Query("SELECT * FROM goals WHERE user_id = :userId AND is_completed = 0 ORDER BY target_date ASC")
+    LiveData<List<Goal>> getActiveGoals(int userId);
+
+    @Query("SELECT * FROM goals WHERE user_id = :userId AND is_completed = 1 ORDER BY target_date DESC")
+    LiveData<List<Goal>> getCompletedGoals(int userId);
+
+    @Query("DELETE FROM goals WHERE user_id = :userId")
+    void deleteAll(int userId);
+
+    @Query("SELECT COUNT(*) FROM goals WHERE user_id = :userId AND is_completed = 0")
+    LiveData<Integer> getActiveGoalsCount(int userId);
+
+    @Query("SELECT * FROM goals WHERE user_id = :userId AND is_completed = 0")
+    List<Goal> getActiveGoalsSync(int userId);
 }

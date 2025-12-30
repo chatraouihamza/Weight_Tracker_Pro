@@ -1,99 +1,140 @@
 package com.example.weighttrackerapp.utils;
 
-/**
- * Utility class for health-related calculations.
- */
+import com.example.weighttrackerapp.models.UserProfile;
+
+import java.util.concurrent.TimeUnit;
+
 public class HealthCalculator {
-    
+
+    // --- Constants ---
+    private static final int CALORIES_PER_KG_FAT = 7700;
+    private static final int MIN_SAFE_CALORIES_MALE = 1500;
+    private static final int MIN_SAFE_CALORIES_FEMALE = 1200;
+
     /**
-     * Calculate BMI (Body Mass Index).
-     * Formula: weight (kg) / (height (m) ^ 2)
+     * Simple container for Macro results
      */
+    public static class MacroNutrients {
+        public int calories;
+        public int protein;
+        public int carbs;
+        public int fat;
+        public int waterMl;
+
+        public MacroNutrients(int calories, int protein, int carbs, int fat, int waterMl) {
+            this.calories = calories;
+            this.protein = protein;
+            this.carbs = carbs;
+            this.fat = fat;
+            this.waterMl = waterMl;
+        }
+    }
+
+    /**
+     * MASTER CALCULATION METHOD
+     * Calculates everything based on User Profile and Goal.
+     */
+    public static MacroNutrients calculateNeeds(UserProfile user, double currentWeight,
+                                                double targetWeight, long targetDate) {
+
+        // 1. Calculate BMR (Mifflin-St Jeor)
+        double bmr = calculateBMR(currentWeight, user.getHeight(), user.getAge(), user.getGender());
+
+        // 2. Calculate Maintenance Calories (TDEE)
+        double activityMultiplier = getTDEEMultiplier(user.getActivityLevel());
+        double tdee = bmr * activityMultiplier;
+
+        // 3. Calculate Daily Target based on Goal Deadline
+        int dailyCalories = calculateGoalCalories(tdee, currentWeight, targetWeight, targetDate, user.getGender());
+
+        // 4. Calculate Macros (Standard Balanced Diet)
+        // Protein: 30%, Fat: 30%, Carbs: 40%
+        int proteinGrams = (int) ((dailyCalories * 0.30) / 4);
+        int fatGrams = (int) ((dailyCalories * 0.30) / 9);
+        int carbsGrams = (int) ((dailyCalories * 0.40) / 4);
+
+        // 5. Calculate Water (35ml per kg is a standard health baseline)
+        int waterMl = (int) (currentWeight * 35);
+        // Add extra for high activity
+        if (activityMultiplier > 1.5) waterMl += 500;
+
+        return new MacroNutrients(dailyCalories, proteinGrams, carbsGrams, fatGrams, waterMl);
+    }
+
+    // --- Internal Math Methods ---
+
+    private static double calculateBMR(double weight, double height, int age, String gender) {
+        double s = 5;
+        if (UserProfile.GENDER_FEMALE.equalsIgnoreCase(gender)) {
+            s = -161;
+        }
+        // Formula: 10*W + 6.25*H - 5*A + S
+        return (10 * weight) + (6.25 * height) - (5 * age) + s;
+    }
+
+    private static double getTDEEMultiplier(String activityLevel) {
+        if (activityLevel == null) return 1.2;
+        switch (activityLevel) {
+            case UserProfile.LEVEL_LIGHT: return 1.375;
+            case UserProfile.LEVEL_MODERATE: return 1.55;
+            case UserProfile.LEVEL_ACTIVE: return 1.725;
+            default: return 1.2; // Sedentary
+        }
+    }
+
+    private static int calculateGoalCalories(double tdee, double currentWeight,
+                                             double targetWeight, long targetDate, String gender) {
+
+        // If no goal set or maintaining
+        if (targetWeight == 0 || currentWeight == targetWeight) {
+            return (int) tdee;
+        }
+
+        // 1. Calculate Total Calorie Gap
+        // e.g., Lose 2kg = -15,400 kcal total needed
+        double weightDifference = targetWeight - currentWeight;
+        double totalCaloriesNeeded = weightDifference * CALORIES_PER_KG_FAT;
+
+        // 2. Calculate Days Remaining
+        long diffInMillis = targetDate - System.currentTimeMillis();
+        long daysRemaining = TimeUnit.MILLISECONDS.toDays(diffInMillis);
+
+        if (daysRemaining <= 0) daysRemaining = 1; // Avoid division by zero
+
+        // 3. Calculate Daily Deficit/Surplus
+        double dailyAdjustment = totalCaloriesNeeded / daysRemaining;
+
+        // 4. Apply to TDEE
+        double targetCalories = tdee + dailyAdjustment;
+
+        // 5. SAFETY CHECKS (Crucial for Health App)
+        // Don't starve the user. Cap the deficit.
+        int minSafe = UserProfile.GENDER_MALE.equalsIgnoreCase(gender) ?
+                MIN_SAFE_CALORIES_MALE : MIN_SAFE_CALORIES_FEMALE;
+
+        if (targetCalories < minSafe) {
+            return minSafe; // Return minimum safe limit
+        }
+
+        // Also don't suggest eating 5000+ calories unless they are an athlete
+        if (targetCalories > 4000) {
+            return 4000;
+        }
+
+        return (int) targetCalories;
+    }
+
+    // Helper for BMI Category
     public static double calculateBMI(double weightKg, double heightCm) {
         if (heightCm <= 0) return 0;
         double heightM = heightCm / 100.0;
         return weightKg / (heightM * heightM);
     }
-    
-    /**
-     * Get BMI category based on BMI value.
-     */
+
     public static String getBMICategory(double bmi) {
-        if (bmi < 18.5) {
-            return "Underweight";
-        } else if (bmi < 25) {
-            return "Normal weight";
-        } else if (bmi < 30) {
-            return "Overweight";
-        } else {
-            return "Obese";
-        }
-    }
-    
-    /**
-     * Calculate daily calorie needs using Mifflin-St Jeor equation.
-     * Returns BMR (Basal Metabolic Rate).
-     */
-    public static double calculateBMR(double weightKg, double heightCm, int age, String gender) {
-        if ("MALE".equalsIgnoreCase(gender)) {
-            return 10 * weightKg + 6.25 * heightCm - 5 * age + 5;
-        } else if ("FEMALE".equalsIgnoreCase(gender)) {
-            return 10 * weightKg + 6.25 * heightCm - 5 * age - 161;
-        }
-        return 0;
-    }
-    
-    /**
-     * Calculate TDEE (Total Daily Energy Expenditure) based on activity level.
-     * activityFactor: 1.2 (sedentary), 1.375 (light), 1.55 (moderate), 1.725 (very active), 1.9 (extremely active)
-     */
-    public static double calculateTDEE(double bmr, double activityFactor) {
-        return bmr * activityFactor;
-    }
-    
-    /**
-     * Calculate ideal weight range based on height using BMI formula.
-     * Returns array [minWeight, maxWeight] for BMI 18.5-24.9 (normal range)
-     */
-    public static double[] getIdealWeightRange(double heightCm) {
-        double heightM = heightCm / 100.0;
-        double minWeight = 18.5 * (heightM * heightM);
-        double maxWeight = 24.9 * (heightM * heightM);
-        return new double[]{minWeight, maxWeight};
-    }
-    
-    /**
-     * Calculate weight change needed to reach target weight.
-     */
-    public static double calculateWeightChange(double currentWeight, double targetWeight) {
-        return targetWeight - currentWeight;
-    }
-    
-    /**
-     * Calculate percentage of weight change.
-     */
-    public static double calculateWeightChangePercentage(double startWeight, double currentWeight) {
-        if (startWeight == 0) return 0;
-        return ((currentWeight - startWeight) / startWeight) * 100;
-    }
-    
-    /**
-     * Calculate water intake recommendation in liters.
-     * Formula: weight (kg) * 0.033 liters
-     */
-    public static double calculateWaterIntake(double weightKg) {
-        return weightKg * 0.033;
-    }
-    
-    /**
-     * Calculate macro nutrients distribution.
-     * Returns array [protein, carbs, fat] in grams based on calorie target.
-     * Default: 30% protein, 40% carbs, 30% fat
-     */
-    public static double[] calculateMacroNutrients(int calorieTarget) {
-        double protein = (calorieTarget * 0.30) / 4; // 4 cal per gram
-        double carbs = (calorieTarget * 0.40) / 4;   // 4 cal per gram
-        double fat = (calorieTarget * 0.30) / 9;     // 9 cal per gram
-        return new double[]{protein, carbs, fat};
+        if (bmi < 18.5) return "Underweight";
+        if (bmi < 25) return "Normal";
+        if (bmi < 30) return "Overweight";
+        return "Obese";
     }
 }

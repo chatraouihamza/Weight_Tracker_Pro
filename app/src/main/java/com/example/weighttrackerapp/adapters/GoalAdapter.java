@@ -3,8 +3,8 @@ package com.example.weighttrackerapp.adapters;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.TextView;
 import android.widget.ProgressBar;
+import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.DiffUtil;
@@ -13,60 +13,92 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.weighttrackerapp.R;
 import com.example.weighttrackerapp.models.Goal;
+import com.example.weighttrackerapp.utils.FormatUtils;
 
-/**
- * Adapter for Goal RecyclerView.
- */
-public class GoalAdapter extends ListAdapter<Goal, GoalAdapter.ViewHolder> {
-    
-    public GoalAdapter() {
-        super(new DiffUtil.ItemCallback<Goal>() {
-            @Override
-            public boolean areItemsTheSame(@NonNull Goal oldItem, @NonNull Goal newItem) {
-                return oldItem.getId() == newItem.getId();
-            }
-            
-            @Override
-            public boolean areContentsTheSame(@NonNull Goal oldItem, @NonNull Goal newItem) {
-                return oldItem.getTitle().equals(newItem.getTitle()) &&
-                       oldItem.getProgressPercentage() == newItem.getProgressPercentage();
-            }
-        });
+public class GoalAdapter extends ListAdapter<Goal, GoalAdapter.GoalViewHolder> {
+
+    private OnGoalClickListener listener;
+
+    public interface OnGoalClickListener {
+        void onGoalClick(Goal goal);
     }
-    
+
+    public void setOnGoalClickListener(OnGoalClickListener listener) {
+        this.listener = listener;
+    }
+
+    public GoalAdapter() {
+        super(DIFF_CALLBACK);
+    }
+
+    private static final DiffUtil.ItemCallback<Goal> DIFF_CALLBACK = new DiffUtil.ItemCallback<Goal>() {
+        @Override
+        public boolean areItemsTheSame(@NonNull Goal oldItem, @NonNull Goal newItem) {
+            return oldItem.getId() == newItem.getId();
+        }
+
+        @Override
+        public boolean areContentsTheSame(@NonNull Goal oldItem, @NonNull Goal newItem) {
+            return oldItem.getTitle().equals(newItem.getTitle()) &&
+                    oldItem.getProgressPercentage() == newItem.getProgressPercentage() &&
+                    oldItem.isCompleted() == newItem.isCompleted();
+        }
+    };
+
     @NonNull
     @Override
-    public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+    public GoalViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(parent.getContext())
                 .inflate(R.layout.item_goal, parent, false);
-        return new ViewHolder(view);
+        return new GoalViewHolder(view);
     }
-    
+
     @Override
-    public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
+    public void onBindViewHolder(@NonNull GoalViewHolder holder, int position) {
         Goal goal = getItem(position);
         holder.bind(goal);
     }
-    
-    static class ViewHolder extends RecyclerView.ViewHolder {
-        private final TextView tvGoalTitle;
-        private final TextView tvGoalDescription;
-        private final ProgressBar pbGoalProgress;
-        private final TextView tvProgress;
-        
-        ViewHolder(@NonNull View itemView) {
+
+    class GoalViewHolder extends RecyclerView.ViewHolder {
+        private final TextView tvTitle;
+        private final TextView tvDescription;
+        private final TextView tvDate; // Display target date
+        private final ProgressBar pbProgress;
+        private final TextView tvPercentage;
+
+        public GoalViewHolder(@NonNull View itemView) {
             super(itemView);
-            tvGoalTitle = itemView.findViewById(R.id.tv_goal_title);
-            tvGoalDescription = itemView.findViewById(R.id.tv_goal_description);
-            pbGoalProgress = itemView.findViewById(R.id.pb_goal_progress);
-            tvProgress = itemView.findViewById(R.id.tv_progress);
+            tvTitle = itemView.findViewById(R.id.tv_goal_title);
+            tvDescription = itemView.findViewById(R.id.tv_goal_description);
+            // Ensure this ID exists in item_goal.xml, or remove this line
+            tvDate = itemView.findViewById(R.id.tv_date);
+            pbProgress = itemView.findViewById(R.id.pb_goal_progress);
+            tvPercentage = itemView.findViewById(R.id.tv_progress);
+
+            itemView.setOnClickListener(v -> {
+                int position = getAdapterPosition();
+                if (listener != null && position != RecyclerView.NO_POSITION) {
+                    listener.onGoalClick(getItem(position));
+                }
+            });
         }
-        
-        void bind(Goal goal) {
-            tvGoalTitle.setText(goal.getTitle());
-            tvGoalDescription.setText(goal.getDescription());
-            pbGoalProgress.setProgress(goal.getProgressPercentage());
-            tvProgress.setText(goal.getProgressPercentage() + "%");
+
+        public void bind(Goal goal) {
+            tvTitle.setText(goal.getTitle());
+
+            if(tvDate != null) {
+                tvDate.setText("Deadline: " + FormatUtils.formatDate(goal.getTargetDate()));
+            }
+
+            if (goal.getDescription() != null && !goal.getDescription().isEmpty()) {
+                tvDescription.setText(goal.getDescription());
+                tvDescription.setVisibility(View.VISIBLE);
+            } else {
+                tvDescription.setVisibility(View.GONE);
+            }
+
+            pbProgress.setProgress(goal.getProgressPercentage());
+            tvPercentage.setText(goal.getProgressPercentage() + "%");
         }
     }
 }
