@@ -112,6 +112,10 @@ public class RegisterActivity extends AppCompatActivity {
 
             // Hash Password
             String hashedPassword = SecurityUtils.hashString(password);
+            if (hashedPassword == null) {
+                Toast.makeText(this, "Security Error", Toast.LENGTH_SHORT).show();
+                return;
+            }
 
             // Create User Object with NEW fields
             UserProfile newUser = new UserProfile(

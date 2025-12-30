@@ -28,13 +28,11 @@ public class UserProfileViewModel extends AndroidViewModel {
     }
 
     public void saveProfile(UserProfile profile) {
-        profile.setId(1); // Enforce Singleton ID
         repository.saveUserProfile(profile);
     }
 
-    // Ensure this method exists for the Edit Profile feature
     public void updateProfile(UserProfile profile) {
-        profile.setId(1); // Enforce Singleton ID
+
         repository.updateUserProfile(profile);
     }
 }

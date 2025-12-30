@@ -1,6 +1,9 @@
 package com.example.weighttrackerapp.fragments;
 
+import android.Manifest;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -12,28 +15,23 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import android.Manifest;
-import android.content.pm.PackageManager;
-import android.os.Build;
-import androidx.core.content.ContextCompat;
 import androidx.activity.result.contract.ActivityResultContracts;
-import com.example.weighttrackerapp.utils.NotificationScheduler;
-import com.google.android.material.switchmaterial.SwitchMaterial;
-
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 
 import com.example.weighttrackerapp.R;
 import com.example.weighttrackerapp.activities.LoginActivity;
 import com.example.weighttrackerapp.models.UserProfile;
+import com.example.weighttrackerapp.utils.NotificationScheduler;
 import com.example.weighttrackerapp.utils.SessionManager;
 import com.example.weighttrackerapp.viewmodels.UserProfileViewModel;
+import com.google.android.material.switchmaterial.SwitchMaterial;
 
 public class ProfileFragment extends Fragment {
 
-    // CHANGED: Use UserProfileViewModel
     private UserProfileViewModel viewModel;
     private UserProfile currentUser;
 
@@ -42,18 +40,23 @@ public class ProfileFragment extends Fragment {
     private EditText etName, etAge, etHeight;
     private Spinner spActivityLevel;
     private Button btnSave, btnLogout;
-
-    // Notifications
     private SwitchMaterial switchNotifications;
+
+    // Permission Launcher
     private final androidx.activity.result.ActivityResultLauncher<String> requestPermissionLauncher =
             registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
                 if (isGranted) {
                     NotificationScheduler.scheduleDailyReminders(requireContext());
                     Toast.makeText(getContext(), "Reminders Enabled", Toast.LENGTH_SHORT).show();
+                    // Update model state to match
+                    if (currentUser != null) currentUser.setNotificationsEnabled(true);
                 } else {
                     switchNotifications.setChecked(false);
                     Toast.makeText(getContext(), "Permission Denied", Toast.LENGTH_SHORT).show();
+                    if (currentUser != null) currentUser.setNotificationsEnabled(false);
                 }
+                // Save the state after permission decision
+                if (currentUser != null) viewModel.updateProfile(currentUser);
             });
 
     @Nullable
@@ -70,19 +73,14 @@ public class ProfileFragment extends Fragment {
         setupSpinner();
         setupViewModel();
 
+        // Listeners
         btnSave.setOnClickListener(v -> saveProfile());
         btnLogout.setOnClickListener(v -> logout());
 
-        // Load initial state (from UserProfile)
-        viewModel.getUserProfile().observe(getViewLifecycleOwner(), profile -> {
-            if (profile != null) {
-                // ... existing population ...
-                switchNotifications.setChecked(profile.isNotificationsEnabled());
-            }
-        });
-
+        // Switch Listener
         switchNotifications.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            if (currentUser != null) {
+            // CRITICAL FIX: Only run logic if the USER pressed it, not when data loads
+            if (buttonView.isPressed() && currentUser != null) {
                 currentUser.setNotificationsEnabled(isChecked);
                 viewModel.updateProfile(currentUser); // Save pref to DB
 
@@ -104,7 +102,6 @@ public class ProfileFragment extends Fragment {
         btnSave = view.findViewById(R.id.btn_save_profile);
         btnLogout = view.findViewById(R.id.btn_logout);
         switchNotifications = view.findViewById(R.id.switch_notifications);
-
     }
 
     private void setupSpinner() {
@@ -121,9 +118,9 @@ public class ProfileFragment extends Fragment {
     }
 
     private void setupViewModel() {
-        // CHANGED: Get the existing UserProfileViewModel
         viewModel = new ViewModelProvider(this).get(UserProfileViewModel.class);
 
+        // Single Observer for all Profile Data
         viewModel.getUserProfile().observe(getViewLifecycleOwner(), profile -> {
             if (profile != null) {
                 currentUser = profile;
@@ -143,6 +140,12 @@ public class ProfileFragment extends Fragment {
         if (adapter != null && profile.getActivityLevel() != null) {
             int position = adapter.getPosition(profile.getActivityLevel());
             if (position >= 0) spActivityLevel.setSelection(position);
+        }
+
+        // Set Switch State
+        // This will NOT trigger the listener logic because of the .isPressed() check
+        if (switchNotifications != null) {
+            switchNotifications.setChecked(profile.isNotificationsEnabled());
         }
     }
 
@@ -164,8 +167,6 @@ public class ProfileFragment extends Fragment {
             currentUser.setHeight(Double.parseDouble(heightStr));
             currentUser.setActivityLevel(spActivityLevel.getSelectedItem().toString());
 
-            // Note: Password/Email are not updated here for security simplicity in this academic scope
-
             viewModel.updateProfile(currentUser);
             Toast.makeText(getContext(), "Profile Updated", Toast.LENGTH_SHORT).show();
 
@@ -183,7 +184,6 @@ public class ProfileFragment extends Fragment {
                 NotificationScheduler.scheduleDailyReminders(requireContext());
             }
         } else {
-            // Android < 13 doesn't need runtime permission
             NotificationScheduler.scheduleDailyReminders(requireContext());
         }
     }

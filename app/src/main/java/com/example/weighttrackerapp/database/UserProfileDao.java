@@ -29,16 +29,16 @@ public interface UserProfileDao {
     @Update
     void update(UserProfile userProfile);
 
-    @Query("SELECT * FROM user_profile WHERE id = 1")
-    LiveData<UserProfile> getUserProfile();
+    @Query("SELECT * FROM user_profile WHERE id = :userId LIMIT 1")
+    LiveData<UserProfile> getUserProfile(int userId);
 
-    @Query("SELECT * FROM user_profile WHERE id = 1")
-    UserProfile getUserProfileSync();
+    @Query("SELECT * FROM user_profile WHERE id = :userId LIMIT 1")
+    UserProfile getUserProfileSync(int userId);
 
     @Query("DELETE FROM user_profile")
     void deleteAll();
 
     // Check if profile exists (returns 1 if exists, 0 if not)
-    @Query("SELECT COUNT(*) FROM user_profile WHERE id = 1")
-    LiveData<Integer> hasProfile();
+    @Query("SELECT COUNT(*) FROM user_profile WHERE id = :userId")
+    LiveData<Integer> hasProfile(int userId);
 }
