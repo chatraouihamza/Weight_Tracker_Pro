@@ -1,6 +1,37 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp">
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+    <!-- Container ID needed to hide it later -->
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/til_grams"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Amount in Grams"
+        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/et_grams"
+            android:inputType="numberDecimal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"/>
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <!-- ID needed to hide it later -->
+    <TextView
+        android:id="@+id/tv_meal_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Select Meal Type"
+        android:layout_marginTop="16dp"
+        android:textColor="@color/primary_dark"
+        android:textStyle="bold"/>
+
+    <Spinner
+        android:id="@+id/sp_meal_type"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_marginTop="8dp"/>
+</LinearLayout>

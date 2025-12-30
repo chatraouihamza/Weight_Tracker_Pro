@@ -1,18 +1,36 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="purple_200">#FFBB86FC</color>
-    <color name="purple_500">#FF6200EE</color>
-    <color name="purple_700">#FF3700B3</color>
-    <color name="teal_200">#FF03DAC5</color>
-    <color name="teal_700">#FF018786</color>
-    <color name="black">#FF000000</color>
-    <color name="white">#FFFFFFFF</color>
+    <!-- Primary Brand Colors (Forest & Emerald) -->
+    <color name="primary_green">#2E7D32</color>      <!-- Main Button / App Bar -->
+    <color name="primary_dark">#1B5E20</color>       <!-- Status Bar -->
+    <color name="primary_light">#E8F5E9</color>      <!-- Light backgrounds / Tints -->
 
-    <!-- Old colors that are still being used. -->
-    <color name="background_light">#FFFFFFFF</color>
-    <color name="text_secondary">#808080</color>
-    <color name="primary_blue">#FF6200EE</color>
-    <color name="warning_orange">#FFA500</color>
-    <color name="text_primary">#000000</color>
-    <color name="success_green">#008000</color>
+    <!-- Secondary Accents (Fresh Mint) -->
+    <color name="secondary_green">#66BB6A</color>    <!-- Floating Actions / Highlights -->
+    <color name="secondary_light">#C8E6C9</color>    <!-- Progress bars backgrounds -->
+
+    <!-- Neutral Colors (Modern Flat Look) -->
+    <color name="background_page">#F5F7F5</color>    <!-- Slightly off-white green tint -->
+    <color name="surface_card">#FFFFFF</color>       <!-- Pure white for cards -->
+
+    <!-- Typography -->
+    <color name="text_primary">#1A1C18</color>       <!-- Almost Black -->
+    <color name="text_secondary">#43483F</color>     <!-- Dark Grey/Green -->
+    <color name="text_hint">#72796F</color>          <!-- Light Grey -->
+
+    <!-- Functional Colors -->
+    <color name="error_red">#BA1A1A</color>
+    <color name="success_blue">#006C4C</color>
+    <color name="warning_orange">#EF6C00</color>
+
+    <!-- Legacy Mappings (Prevents Crashes in old themes) -->
+    <color name="purple_500">@color/primary_green</color>
+    <color name="purple_700">@color/primary_dark</color>
+    <!-- ADDED THIS LINE BELOW TO FIX YOUR CRASH: -->
+    <color name="purple_200">@color/secondary_green</color>
+
+    <color name="teal_200">@color/secondary_green</color>
+    <color name="teal_700">@color/primary_dark</color>
+    <color name="black">@color/text_primary</color>
+    <color name="white">@color/surface_card</color>
 </resources>

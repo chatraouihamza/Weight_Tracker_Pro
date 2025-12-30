@@ -1,27 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
+
     <item
         android:id="@+id/nav_dashboard"
-        android:icon="@drawable/ic_dashboard"
-        android:title="Dashboard" />
-    
+        android:icon="@drawable/ic_nav_home"
+        android:title="Home" />
+
     <item
         android:id="@+id/nav_weight"
-        android:icon="@drawable/ic_weight"
+        android:icon="@drawable/ic_nav_weight"
         android:title="Weight" />
-    
-    <item
-        android:id="@+id/nav_goals"
-        android:icon="@drawable/ic_goals"
-        android:title="Goals" />
-    
+
     <item
         android:id="@+id/nav_food"
-        android:icon="@drawable/ic_food"
+        android:icon="@drawable/ic_nav_food"
         android:title="Food" />
-    
+
     <item
-        android:id="@+id/nav_analytics"
-        android:icon="@drawable/ic_analytics"
-        android:title="Analytics" />
+        android:id="@+id/nav_goals"
+        android:icon="@drawable/ic_nav_goals"
+        android:title="Goals" />
+
+    <!-- CHANGED: Replaced Analytics with Profile -->
+    <item
+        android:id="@+id/nav_profile"
+        android:icon="@drawable/ic_nav_profile"
+        android:title="Profile" />
+
 </menu>

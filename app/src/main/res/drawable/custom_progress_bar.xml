@@ -1,4 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
-<selector xmlns:android="http://schemas.android.com/apk/res/android">
-  
-</selector>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Background (Track) -->
+    <item android:id="@android:id/background">
+        <shape>
+            <corners android:radius="4dp"/>
+            <solid android:color="@color/primary_light"/> <!-- Light Green background -->
+        </shape>
+    </item>
+
+    <!-- Secondary Progress (Optional, usually for buffering) -->
+    <item android:id="@android:id/secondaryProgress">
+        <scale android:scaleWidth="100%">
+            <shape>
+                <corners android:radius="4dp"/>
+                <solid android:color="#C8E6C9"/>
+            </shape>
+        </scale>
+    </item>
+
+    <!-- Progress (Fill) -->
+    <item android:id="@android:id/progress">
+        <scale android:scaleWidth="100%">
+            <shape>
+                <corners android:radius="4dp"/>
+                <solid android:color="@color/primary_green"/> <!-- Main Green Fill -->
+            </shape>
+        </scale>
+    </item>
+
+</layer-list>

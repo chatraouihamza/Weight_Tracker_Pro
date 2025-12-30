@@ -52,18 +52,14 @@ public class WeightTrackingFragment extends Fragment {
     private WeightTrackingViewModel viewModel;
     private DashboardViewModel dashboardViewModel;
 
-    // UI Components
+    // UI
     private LineChart chart;
     private ChipGroup chipGroupTimeframe;
     private TextView tvBmi, tvChange, tvAvg, tvProgress;
     private TextView tvMeasWaist, tvMeasFat, tvMeasRatio;
-
-    // Navigation UI (Arrows)
     private LinearLayout layoutDateNav;
     private ImageButton btnPrev, btnNext;
     private TextView tvDateRangeLabel;
-
-    // Action Buttons
     private Button btnLogWeight, btnLogMeasure;
 
     // Data
@@ -71,16 +67,14 @@ public class WeightTrackingFragment extends Fragment {
     private Goal currentGoal;
     private UserProfile userProfile;
 
-    // Time Navigation State
+    // Time State
     private static final int SCOPE_1M = 1;
     private static final int SCOPE_6M = 2;
     private static final int SCOPE_1Y = 3;
     private static final int SCOPE_ALL = 4;
 
     private int currentScope = SCOPE_ALL;
-    private Calendar calendarCursor; // Points to the current view window
-
-    // Temporary State for Dialogs
+    private Calendar calendarCursor;
     private Date tempDate;
 
     @Nullable
@@ -92,10 +86,7 @@ public class WeightTrackingFragment extends Fragment {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-
-        // Initialize Cursor to Today
-        calendarCursor = Calendar.getInstance();
-
+        calendarCursor = Calendar.getInstance(); // Default to Now
         initializeViews(view);
         setupChartConfig();
         setupViewModels();
@@ -106,24 +97,20 @@ public class WeightTrackingFragment extends Fragment {
         chart = view.findViewById(R.id.chart_weight);
         chipGroupTimeframe = view.findViewById(R.id.chip_group_timeframe);
 
-        // Stats
         tvBmi = view.findViewById(R.id.tv_stat_bmi);
         tvChange = view.findViewById(R.id.tv_stat_change);
         tvAvg = view.findViewById(R.id.tv_stat_avg);
         tvProgress = view.findViewById(R.id.tv_stat_progress);
 
-        // Measurements
         tvMeasWaist = view.findViewById(R.id.tv_meas_waist);
         tvMeasFat = view.findViewById(R.id.tv_meas_fat);
         tvMeasRatio = view.findViewById(R.id.tv_meas_ratio);
 
-        // Navigation (Ensure these IDs exist in your XML)
         layoutDateNav = view.findViewById(R.id.layout_date_nav);
         btnPrev = view.findViewById(R.id.btn_prev_date);
         btnNext = view.findViewById(R.id.btn_next_date);
         tvDateRangeLabel = view.findViewById(R.id.tv_date_range_label);
 
-        // Buttons
         btnLogWeight = view.findViewById(R.id.btn_action_weight);
         btnLogMeasure = view.findViewById(R.id.btn_action_measure);
     }
@@ -132,28 +119,26 @@ public class WeightTrackingFragment extends Fragment {
         viewModel = new ViewModelProvider(this).get(WeightTrackingViewModel.class);
         dashboardViewModel = new ViewModelProvider(requireActivity()).get(DashboardViewModel.class);
 
-        // 1. Weight Data
+        // Observer Weight
         viewModel.getAllWeightEntries().observe(getViewLifecycleOwner(), entries -> {
             if (entries != null) {
+                // Sort by date ASC
                 Collections.sort(entries, Comparator.comparingLong(WeightEntry::getDate));
                 allEntries = entries;
                 updateChartAndStats();
             }
         });
 
-        // 2. Goal
         viewModel.getActiveGoal().observe(getViewLifecycleOwner(), goal -> {
             currentGoal = goal;
             updateChartAndStats();
         });
 
-        // 3. Profile
         dashboardViewModel.getUserProfile().observe(getViewLifecycleOwner(), profile -> {
             userProfile = profile;
             updateChartAndStats();
         });
 
-        // 4. Measurements
         viewModel.getLatestMeasurement().observe(getViewLifecycleOwner(), this::updateMeasurementUI);
     }
 
@@ -168,21 +153,23 @@ public class WeightTrackingFragment extends Fragment {
 
         XAxis xAxis = chart.getXAxis();
         xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
-        xAxis.setGranularity(1f);
+
+        // FIX: PRECISION ISSUE
+        // We will pass "Seconds" to the chart, so we need to multiply by 1000L to format back to Date
         xAxis.setValueFormatter(new ValueFormatter() {
             @Override
             public String getFormattedValue(float value) {
-                return FormatUtils.formatChartDate((long) value);
+                long timestamp = (long) value * 1000L; // Convert back to Millis
+                return FormatUtils.formatChartDate(timestamp);
             }
         });
         xAxis.setLabelRotationAngle(-45);
     }
 
     private void setupListeners() {
-        // Chip Group Listener
         chipGroupTimeframe.setOnCheckedStateChangeListener((group, checkedIds) -> {
             int id = group.getCheckedChipId();
-            // Reset cursor to today when changing filters
+            // Reset cursor to Today whenever switching modes so user sees current data first
             calendarCursor = Calendar.getInstance();
 
             if (id == R.id.chip_1m) currentScope = SCOPE_1M;
@@ -193,11 +180,9 @@ public class WeightTrackingFragment extends Fragment {
             updateChartAndStats();
         });
 
-        // Navigation Arrows
         if (btnPrev != null) btnPrev.setOnClickListener(v -> shiftDateWindow(-1));
         if (btnNext != null) btnNext.setOnClickListener(v -> shiftDateWindow(1));
 
-        // Buttons
         btnLogWeight.setOnClickListener(v -> showWeightDialog());
         btnLogMeasure.setOnClickListener(v -> showMeasurementDialog());
     }
@@ -213,14 +198,13 @@ public class WeightTrackingFragment extends Fragment {
         updateChartAndStats();
     }
 
-    // --- CHART & STATS LOGIC ---
     private void updateChartAndStats() {
         if (allEntries.isEmpty()) {
             chart.clear();
             return;
         }
 
-        // 1. Calculate Start/End based on Cursor
+        // 1. Calculate Window
         long startTime = 0;
         long endTime = Long.MAX_VALUE;
         SimpleDateFormat sdf = new SimpleDateFormat("MMM yyyy", Locale.getDefault());
@@ -228,37 +212,48 @@ public class WeightTrackingFragment extends Fragment {
         if (currentScope != SCOPE_ALL && layoutDateNav != null) {
             layoutDateNav.setVisibility(View.VISIBLE);
 
-            Calendar endCal = (Calendar) calendarCursor.clone();
-            endCal.set(Calendar.HOUR_OF_DAY, 23);
-            endCal.set(Calendar.MINUTE, 59);
-            endTime = endCal.getTimeInMillis();
-
             Calendar startCal = (Calendar) calendarCursor.clone();
-            startCal.set(Calendar.HOUR_OF_DAY, 0);
-            startCal.set(Calendar.MINUTE, 0);
+            Calendar endCal = (Calendar) calendarCursor.clone();
 
             if (currentScope == SCOPE_1M) {
-                // Whole Month (e.g., Oct 1 - Oct 31)
+                // Set to 1st day of the month
                 startCal.set(Calendar.DAY_OF_MONTH, 1);
+                startCal.set(Calendar.HOUR_OF_DAY, 0);
+                startCal.set(Calendar.MINUTE, 0);
+
+                // Set to End of Month
                 endCal.set(Calendar.DAY_OF_MONTH, endCal.getActualMaximum(Calendar.DAY_OF_MONTH));
-                endTime = endCal.getTimeInMillis();
+                endCal.set(Calendar.HOUR_OF_DAY, 23);
+                endCal.set(Calendar.MINUTE, 59);
+
                 tvDateRangeLabel.setText(sdf.format(calendarCursor.getTime()));
 
             } else if (currentScope == SCOPE_6M) {
+                // Go back 5 months + current month = 6 months
                 startCal.add(Calendar.MONTH, -5);
+                startCal.set(Calendar.DAY_OF_MONTH, 1);
+
+                endCal.set(Calendar.DAY_OF_MONTH, endCal.getActualMaximum(Calendar.DAY_OF_MONTH));
+
                 tvDateRangeLabel.setText(sdf.format(startCal.getTime()) + " - " + sdf.format(calendarCursor.getTime()));
 
             } else if (currentScope == SCOPE_1Y) {
                 startCal.set(Calendar.DAY_OF_YEAR, 1);
+                endCal.set(Calendar.MONTH, 11);
+                endCal.set(Calendar.DAY_OF_MONTH, 31);
+
                 SimpleDateFormat yearFmt = new SimpleDateFormat("yyyy", Locale.getDefault());
                 tvDateRangeLabel.setText(yearFmt.format(calendarCursor.getTime()));
             }
+
             startTime = startCal.getTimeInMillis();
+            endTime = endCal.getTimeInMillis();
+
         } else if (layoutDateNav != null) {
             layoutDateNav.setVisibility(View.GONE);
         }
 
-        // 2. Filter List
+        // 2. Filter
         List<WeightEntry> filteredList = new ArrayList<>();
         double sum = 0;
         for (WeightEntry w : allEntries) {
@@ -270,7 +265,7 @@ public class WeightTrackingFragment extends Fragment {
 
         if (filteredList.isEmpty()) {
             chart.clear();
-            chart.setNoDataText("No data for this period");
+            chart.setNoDataText("No data for " + tvDateRangeLabel.getText());
             chart.invalidate();
             tvAvg.setText("--");
             tvChange.setText("--");
@@ -287,7 +282,12 @@ public class WeightTrackingFragment extends Fragment {
         double change = latest.getWeight() - oldest.getWeight();
         String sign = change > 0 ? "+" : "";
         tvChange.setText(sign + FormatUtils.formatWeight(change) + " kg");
-        tvChange.setTextColor(change <= 0 ? getResources().getColor(R.color.success_blue, null) : getResources().getColor(R.color.warning_orange, null));
+
+        int color = change <= 0 ? R.color.success_blue : R.color.warning_orange;
+        if (currentGoal != null && currentGoal.getGoalType().equals(Goal.TYPE_GAIN)) {
+            color = change >= 0 ? R.color.success_blue : R.color.warning_orange;
+        }
+        tvChange.setTextColor(getResources().getColor(color, null));
 
         if (userProfile != null && userProfile.getHeight() > 0) {
             double bmi = HealthCalculator.calculateBMI(latest.getWeight(), userProfile.getHeight());
@@ -297,15 +297,16 @@ public class WeightTrackingFragment extends Fragment {
         if (currentGoal != null) tvProgress.setText(currentGoal.getProgressPercentage() + "%");
         else tvProgress.setText("N/A");
 
-        // 4. Draw
-        drawChart(filteredList, latest);
+        // 4. Draw Chart (Without Prediction)
+        drawChart(filteredList);
     }
 
-    private void drawChart(List<WeightEntry> filteredList, WeightEntry latestEntry) {
-        // A. Real Data
+    private void drawChart(List<WeightEntry> filteredList) {
         List<Entry> realValues = new ArrayList<>();
         for (WeightEntry w : filteredList) {
-            realValues.add(new Entry((float) w.getDate(), (float) w.getWeight()));
+            // FIX: Convert Millis (Long) to Seconds (Float) to preserve precision
+            float xValue = w.getDate() / 1000f;
+            realValues.add(new Entry(xValue, (float) w.getWeight()));
         }
 
         LineDataSet setReal = new LineDataSet(realValues, "Weight");
@@ -313,35 +314,21 @@ public class WeightTrackingFragment extends Fragment {
         setReal.setCircleColor(getResources().getColor(R.color.primary_green, null));
         setReal.setLineWidth(3f);
         setReal.setDrawValues(false);
-        setReal.setDrawCircles(filteredList.size() < 20);
+        setReal.setDrawCircles(filteredList.size() < 15); // Show dots if few items
         setReal.setMode(LineDataSet.Mode.CUBIC_BEZIER);
         setReal.setDrawFilled(true);
         setReal.setFillColor(getResources().getColor(R.color.primary_light, null));
 
-        // B. Dynamic Prediction
-        // Draws line from LATEST ENTRY to TARGET
-        List<Entry> predictValues = new ArrayList<>();
-        if (currentGoal != null && latestEntry != null) {
-            if (currentGoal.getTargetDate() > latestEntry.getDate()) {
-                predictValues.add(new Entry((float) latestEntry.getDate(), (float) latestEntry.getWeight()));
-                predictValues.add(new Entry((float) currentGoal.getTargetDate(), (float) currentGoal.getTargetWeight()));
-            }
-        }
-
-        LineDataSet setPredict = new LineDataSet(predictValues, "Goal Path");
-        setPredict.setColor(Color.GRAY);
-        setPredict.enableDashedLine(10f, 10f, 0f);
-        setPredict.setLineWidth(2f);
-        setPredict.setDrawCircles(false);
-        setPredict.setDrawValues(false);
-
         ArrayList<ILineDataSet> sets = new ArrayList<>();
         sets.add(setReal);
-        if (!predictValues.isEmpty()) sets.add(setPredict);
+        // Removed Prediction Line Set
 
         LineData data = new LineData(sets);
         chart.setData(data);
-        chart.fitScreen(); // Snap to data
+
+        // Refresh View
+        chart.fitScreen();
+        chart.notifyDataSetChanged();
         chart.invalidate();
         chart.animateX(500);
     }
