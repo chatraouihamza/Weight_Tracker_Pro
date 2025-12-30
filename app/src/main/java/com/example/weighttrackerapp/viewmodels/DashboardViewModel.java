@@ -11,7 +11,9 @@ import androidx.lifecycle.MediatorLiveData;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.Transformations;
 
+import com.example.weighttrackerapp.models.FoodEntry;
 import com.example.weighttrackerapp.models.Goal;
+import com.example.weighttrackerapp.models.MealGroup;
 import com.example.weighttrackerapp.models.UserProfile;
 import com.example.weighttrackerapp.models.WeightEntry;
 import com.example.weighttrackerapp.repositories.FoodRepository;
@@ -21,8 +23,11 @@ import com.example.weighttrackerapp.repositories.WeightRepository;
 import com.example.weighttrackerapp.utils.DateUtils;
 import com.example.weighttrackerapp.utils.HealthCalculator;
 
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class DashboardViewModel extends AndroidViewModel {
 
@@ -49,6 +54,7 @@ public class DashboardViewModel extends AndroidViewModel {
     // Water Data
     private final MutableLiveData<Integer> waterIntake = new MutableLiveData<>(0);
     private final SharedPreferences prefs;
+
 
     public DashboardViewModel(@NonNull Application application) {
         super(application);
@@ -83,6 +89,8 @@ public class DashboardViewModel extends AndroidViewModel {
         todayProtein = foodRepository.getTotalProteinForDate(today);
         todayCarbs = foodRepository.getTotalCarbsForDate(today);
         todayFat = foodRepository.getTotalFatForDate(today);
+
+
     }
 
     private void recalculateTargets() {
@@ -116,12 +124,54 @@ public class DashboardViewModel extends AndroidViewModel {
         waterIntake.setValue(prefs.getInt(key, 0));
     }
 
-    public void addWater() {
-        int current = waterIntake.getValue() != null ? waterIntake.getValue() : 0;
-        int newVal = current + 1;
-        waterIntake.setValue(newVal);
-        String key = "water_" + DateUtils.formatDate(System.currentTimeMillis());
-        prefs.edit().putInt(key, newVal).apply();
+
+
+    public LiveData<List<MealGroup>> getTodayMealGroups() {
+        // Fetch raw list for today -> Convert to Grouped List
+        return Transformations.map(foodRepository.getFoodEntriesForDate(new Date()), rawList -> {
+            Map<String, MealGroup> groups = new HashMap<>();
+
+            if (rawList != null) {
+                for (FoodEntry entry : rawList) {
+                    String type = entry.getMealType();
+                    // If group doesn't exist, create it
+                    if (!groups.containsKey(type)) {
+                        groups.put(type, new MealGroup(type));
+                    }
+                    // Add entry to group
+                    groups.get(type).addEntry(entry);
+                }
+            }
+            // Convert Map values to List
+            return new ArrayList<>(groups.values());
+        });
+    }
+
+    public void updateFoodEntryByGrams(FoodEntry entry, double newGrams) {
+        // Run in background because we need to query the FoodItem table
+        java.util.concurrent.Executors.newSingleThreadExecutor().execute(() -> {
+
+            // 1. Find the base definition (per 100g)
+            com.example.weighttrackerapp.models.FoodItem baseItem =
+                    foodRepository.getFoodItemByNameSync(entry.getFoodName());
+
+            if (baseItem != null) {
+                // 2. Recalculate Macros
+                double ratio = newGrams / 100.0;
+
+                entry.setCalories((int) (baseItem.getCalories() * ratio));
+                entry.setProtein(baseItem.getProtein() * ratio);
+                entry.setCarbs(baseItem.getCarbs() * ratio);
+                entry.setFat(baseItem.getFat() * ratio);
+
+                // 3. Update DB
+                foodRepository.update(entry);
+            } else {
+                // Fallback: If we can't find the base item (rare), maybe just leave it
+                // or you could implement simple scaling if you had stored previous grams.
+                // For now, we assume the name matches.
+            }
+        });
     }
 
     // --- Getters ---
@@ -137,4 +187,35 @@ public class DashboardViewModel extends AndroidViewModel {
     public LiveData<Double> getTodayCarbs() { return todayCarbs; }
     public LiveData<Double> getTodayFat() { return todayFat; }
     public LiveData<Integer> getWaterIntake() { return waterIntake; }
+
+    public LiveData<List<FoodEntry>> getTodayFoodEntries() {
+        return foodRepository.getFoodEntriesForDate(new Date());
+    }
+
+    // Actions
+    public void updateFoodEntry(FoodEntry entry) {
+        foodRepository.update(entry);
+    }
+
+    public void deleteFoodEntry(FoodEntry entry) {
+        foodRepository.delete(entry);
+    }
+
+    public void addWater() {
+        int current = waterIntake.getValue() != null ? waterIntake.getValue() : 0;
+        updateWater(current + 1);
+    }
+
+    public void removeWater() {
+        int current = waterIntake.getValue() != null ? waterIntake.getValue() : 0;
+        if (current > 0) {
+            updateWater(current - 1);
+        }
+    }
+
+    private void updateWater(int quantity) {
+        waterIntake.setValue(quantity);
+        String key = "water_" + DateUtils.formatDate(System.currentTimeMillis());
+        prefs.edit().putInt(key, quantity).apply();
+    }
 }

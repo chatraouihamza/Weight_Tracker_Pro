@@ -15,6 +15,16 @@ import com.example.weighttrackerapp.models.FoodEntry;
 
 public class FoodEntryAdapter extends ListAdapter<FoodEntry, FoodEntryAdapter.ViewHolder> {
 
+    private OnItemClickListener listener;
+
+    public interface OnItemClickListener {
+        void onItemClick(FoodEntry entry);
+    }
+
+    public void setOnItemClickListener(OnItemClickListener listener) {
+        this.listener = listener;
+    }
+
     public FoodEntryAdapter() {
         super(new DiffUtil.ItemCallback<FoodEntry>() {
             @Override
@@ -24,13 +34,8 @@ public class FoodEntryAdapter extends ListAdapter<FoodEntry, FoodEntryAdapter.Vi
 
             @Override
             public boolean areContentsTheSame(@NonNull FoodEntry oldItem, @NonNull FoodEntry newItem) {
-                // Check ALL visible fields to ensure UI updates correctly
-                return oldItem.getFoodName().equals(newItem.getFoodName()) &&
-                        oldItem.getCalories() == newItem.getCalories() &&
-                        oldItem.getProtein() == newItem.getProtein() &&
-                        oldItem.getCarbs() == newItem.getCarbs() &&
-                        oldItem.getFat() == newItem.getFat() &&
-                        oldItem.getMealType().equals(newItem.getMealType());
+                return oldItem.getCalories() == newItem.getCalories() &&
+                        oldItem.getFoodName().equals(newItem.getFoodName());
             }
         });
     }
@@ -46,32 +51,29 @@ public class FoodEntryAdapter extends ListAdapter<FoodEntry, FoodEntryAdapter.Vi
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         FoodEntry entry = getItem(position);
-        holder.bind(entry);
+        holder.bind(entry, listener);
     }
 
     static class ViewHolder extends RecyclerView.ViewHolder {
-        private final TextView tvFoodName;
-        private final TextView tvCalories;
-        private final TextView tvMacros;
-        private final TextView tvMealType;
+        TextView tvName, tvCals, tvMacros, tvType;
 
-        ViewHolder(@NonNull View itemView) {
+        ViewHolder(View itemView) {
             super(itemView);
-            tvFoodName = itemView.findViewById(R.id.tv_food_name);
-            tvCalories = itemView.findViewById(R.id.tv_calories);
+            tvName = itemView.findViewById(R.id.tv_food_name);
+            tvCals = itemView.findViewById(R.id.tv_calories);
             tvMacros = itemView.findViewById(R.id.tv_macros);
-            tvMealType = itemView.findViewById(R.id.tv_meal_type);
+            tvType = itemView.findViewById(R.id.tv_meal_type);
         }
 
-        void bind(FoodEntry entry) {
-            tvFoodName.setText(entry.getFoodName());
-            tvCalories.setText(entry.getCalories() + " kcal");
+        void bind(FoodEntry entry, OnItemClickListener listener) {
+            tvName.setText(entry.getFoodName());
+            tvCals.setText(entry.getCalories() + " kcal");
+            tvMacros.setText(String.format("P:%.0f C:%.0f F:%.0f", entry.getProtein(), entry.getCarbs(), entry.getFat()));
+            tvType.setText(entry.getMealType());
 
-            // Formatting macros nicely
-            tvMacros.setText(String.format("P: %.0fg | C: %.0fg | F: %.0fg",
-                    entry.getProtein(), entry.getCarbs(), entry.getFat()));
-
-            tvMealType.setText(entry.getMealType());
+            itemView.setOnClickListener(v -> {
+                if (listener != null) listener.onItemClick(entry);
+            });
         }
     }
 }

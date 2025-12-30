@@ -91,4 +91,13 @@ public class FoodRepository {
     public void addFoodItem(FoodItem item) {
         executorService.execute(() -> foodItemDao.insert(item));
     }
+
+    public FoodItem getFoodItemByNameSync(String name) {
+        return foodItemDao.getFoodItemByNameSync(name);
+    }
+
+    public void update(FoodEntry entry) {
+        entry.setUserId(currentUserId);
+        executorService.execute(() -> foodEntryDao.update(entry));
+    }
 }

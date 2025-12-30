@@ -56,7 +56,7 @@ public class WeightTrackingFragment extends Fragment {
     private LineChart chart;
     private ChipGroup chipGroupTimeframe;
     private TextView tvBmi, tvChange, tvAvg, tvProgress;
-    private TextView tvMeasWaist, tvMeasFat, tvMeasRatio;
+    private TextView tvMeasWhr, tvMeasFat, tvMeasMuscle;
     private LinearLayout layoutDateNav;
     private ImageButton btnPrev, btnNext;
     private TextView tvDateRangeLabel;
@@ -102,9 +102,11 @@ public class WeightTrackingFragment extends Fragment {
         tvAvg = view.findViewById(R.id.tv_stat_avg);
         tvProgress = view.findViewById(R.id.tv_stat_progress);
 
-        tvMeasWaist = view.findViewById(R.id.tv_meas_waist);
         tvMeasFat = view.findViewById(R.id.tv_meas_fat);
-        tvMeasRatio = view.findViewById(R.id.tv_meas_ratio);
+        tvMeasWhr = view.findViewById(R.id.tv_meas_whr); // Ensure XML ID matches
+        tvMeasFat = view.findViewById(R.id.tv_meas_fat);
+        tvMeasMuscle = view.findViewById(R.id.tv_meas_muscle);
+
 
         layoutDateNav = view.findViewById(R.id.layout_date_nav);
         btnPrev = view.findViewById(R.id.btn_prev_date);
@@ -134,12 +136,16 @@ public class WeightTrackingFragment extends Fragment {
             updateChartAndStats();
         });
 
+
         dashboardViewModel.getUserProfile().observe(getViewLifecycleOwner(), profile -> {
             userProfile = profile;
+            updateMeasurementUI(viewModel.getLatestMeasurement().getValue());
             updateChartAndStats();
         });
 
-        viewModel.getLatestMeasurement().observe(getViewLifecycleOwner(), this::updateMeasurementUI);
+        viewModel.getLatestMeasurement().observe(getViewLifecycleOwner(), measurement -> {
+            updateMeasurementUI(measurement);
+        });
     }
 
     private void setupChartConfig() {
@@ -369,24 +375,27 @@ public class WeightTrackingFragment extends Fragment {
                 .show();
     }
 
+
     private void showMeasurementDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
         View view = LayoutInflater.from(getContext()).inflate(R.layout.dialog_add_measurement, null);
 
         EditText etWaist = view.findViewById(R.id.et_waist);
         EditText etHips = view.findViewById(R.id.et_hips);
-        EditText etFat = view.findViewById(R.id.et_bodyfat);
+        EditText etNeck = view.findViewById(R.id.et_neck); // NEW
 
         builder.setView(view)
-                .setPositiveButton("Save", (dialog, which) -> {
+                .setPositiveButton("Calculate & Save", (dialog, which) -> {
                     try {
                         double waist = parseDouble(etWaist.getText().toString());
                         double hips = parseDouble(etHips.getText().toString());
-                        double fat = parseDouble(etFat.getText().toString());
+                        double neck = parseDouble(etNeck.getText().toString());
 
-                        if (waist > 0) {
-                            viewModel.addMeasurement(waist, hips, fat);
-                            Toast.makeText(getContext(), "Stats Updated", Toast.LENGTH_SHORT).show();
+                        if (waist > 0 && neck > 0 && hips > 0) {
+                            viewModel.addMeasurement(waist, hips, neck);
+                            Toast.makeText(getContext(), "Stats Calculated", Toast.LENGTH_SHORT).show();
+                        } else {
+                            Toast.makeText(getContext(), "All fields required for accurate Calc", Toast.LENGTH_LONG).show();
                         }
                     } catch (Exception e) {
                         Toast.makeText(getContext(), "Invalid Input", Toast.LENGTH_SHORT).show();
@@ -396,19 +405,91 @@ public class WeightTrackingFragment extends Fragment {
                 .show();
     }
 
-    private void updateMeasurementUI(Measurement m) {
-        if (m != null) {
-            tvMeasWaist.setText(FormatUtils.formatWeight(m.getWaist()) + " cm");
-            tvMeasFat.setText(m.getBodyFat() > 0 ? FormatUtils.formatWeight(m.getBodyFat()) + " %" : "--");
-            double ratio = m.getWaistToHipRatio();
-            if (ratio > 0) {
-                String risk = ratio > 0.90 ? "High Risk" : (ratio > 0.85 ? "Mod. Risk" : "Healthy");
-                tvMeasRatio.setText(String.format("%.2f (%s)", ratio, risk));
-            } else {
-                tvMeasRatio.setText("--");
-            }
-        }
+//    private void updateMeasurementUI(Measurement m) {
+//        // Validation: We need the Measurement AND the Profile AND a valid Height
+//        if (m == null || userProfile == null || userProfile.getHeight() <= 0) {
+//            tvMeasWhr.setText("--");
+//            tvMeasFat.setText("--");
+//            tvMeasMuscle.setText("--");
+//            return;
+//        }
+//
+//        // 1. Calculate WHR
+//        double whr = HealthCalculator.calculateWHR(m.getWaist(), m.getHips());
+//        if (whr > 0) {
+//            tvMeasWhr.setText(String.format("%.2f", whr));
+//        } else {
+//            tvMeasWhr.setText("--");
+//        }
+//
+//        // 2. Calculate Body Fat & Muscle (Needs Neck)
+//        if (m.getNeck() > 0 && m.getWaist() > 0) {
+//            double bodyFat = HealthCalculator.calculateBodyFat(
+//                    m.getWaist(),
+//                    m.getNeck(),
+//                    userProfile.getHeight(),
+//                    m.getHips(),
+//                    userProfile.getGender()
+//            );
+//
+//            // Safety check for math errors (negative results)
+//            if (bodyFat > 0) {
+//                tvMeasFat.setText(String.format("%.1f %%", bodyFat));
+//
+//                double muscle = HealthCalculator.calculateMuscleMassPercentage(bodyFat);
+//                tvMeasMuscle.setText(String.format("%.1f %%", muscle));
+//            } else {
+//                tvMeasFat.setText("--");
+//                tvMeasMuscle.setText("--");
+//            }
+//        } else {
+//            // User hasn't entered Neck/Waist yet
+//            tvMeasFat.setText("Add Neck");
+//            tvMeasMuscle.setText("--");
+//        }
+//    }
+private void updateMeasurementUI(Measurement m) {
+    // 1. Check Data Availability
+    if (m == null) return;
+
+    // 2. Update WHR (Independent of Profile)
+    double whr = HealthCalculator.calculateWHR(m.getWaist(), m.getHips());
+    tvMeasWhr.setText(whr > 0 ? String.format("%.2f", whr) : "--");
+
+    // 3. Check Profile Data for Body Fat
+    if (userProfile == null) {
+        tvMeasFat.setText("Loading...");
+        return;
     }
+
+    if (userProfile.getHeight() <= 0) {
+        tvMeasFat.setText("Set Height"); // Alert user to fix profile
+        return;
+    }
+
+    // 4. Calculate Body Fat
+    if (m.getNeck() > 0 && m.getWaist() > 0) {
+        double bodyFat = HealthCalculator.calculateBodyFat(
+                m.getWaist(),
+                m.getNeck(),
+                userProfile.getHeight(),
+                m.getHips(),
+                userProfile.getGender()
+        );
+
+        if (bodyFat > 0) {
+            tvMeasFat.setText(String.format("%.1f %%", bodyFat));
+
+            double muscle = HealthCalculator.calculateMuscleMassPercentage(bodyFat);
+            tvMeasMuscle.setText(String.format("%.1f %%", muscle));
+        } else {
+            // If it still fails, it's likely "Waist - Neck" is negative (Physics impossible)
+            tvMeasFat.setText("Invalid Dims");
+        }
+    } else {
+        tvMeasFat.setText("Need Neck");
+    }
+}
 
     private double parseDouble(String val) {
         if (val == null || val.isEmpty()) return 0.0;

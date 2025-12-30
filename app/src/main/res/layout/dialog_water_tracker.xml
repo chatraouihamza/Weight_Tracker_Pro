@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    app:cardCornerRadius="16dp"
+    app:cardElevation="0dp"
+    app:cardBackgroundColor="@color/surface_card">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="24dp"
+        android:gravity="center">
+
+        <!-- UPDATED: Water Cup Icon -->
+        <ImageView
+            android:layout_width="64dp"
+            android:layout_height="64dp"
+            android:src="@drawable/ic_water_cup"
+            app:tint="#2196F3"
+            android:layout_marginBottom="16dp"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Hydration Tracker"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:textColor="@color/primary_dark"
+            android:layout_marginBottom="8dp"/>
+
+        <!-- Main Counter -->
+        <TextView
+            android:id="@+id/tv_dialog_count"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="5 Cups"
+            android:textSize="34sp"
+            android:textStyle="bold"
+            android:textColor="#2196F3"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="(1 Cup = 250ml)"
+            android:textSize="12sp"
+            android:textColor="@color/text_hint"
+            android:layout_marginBottom="16dp"/>
+
+        <!-- Remaining Target -->
+        <TextView
+            android:id="@+id/tv_dialog_remaining"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Goal: 10 Cups"
+            android:textSize="14sp"
+            android:textColor="@color/text_secondary"
+            android:background="@drawable/custom_progress_bar"
+            android:backgroundTint="@color/primary_light"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="8dp"
+            android:layout_marginBottom="24dp"/>
+
+        <!-- Controls -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center">
+
+            <!-- UPDATED: Minus Button -->
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/btn_minus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:src="@drawable/ic_input_remove"
+                app:backgroundTint="#ECEFF1"
+                app:tint="@color/text_secondary"
+                app:elevation="0dp"
+                android:layout_marginEnd="32dp"/>
+
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/btn_plus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:src="@drawable/ic_input_add"
+                app:backgroundTint="#2196F3"
+                app:tint="@color/white"
+                app:fabSize="normal"/>
+
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/btn_done"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Done"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_marginTop="16dp"/>
+
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

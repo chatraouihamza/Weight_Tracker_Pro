@@ -35,27 +35,19 @@ public class Measurement implements Serializable {
     @ColumnInfo(name = "chest_cm")
     private double chest;
 
-    @ColumnInfo(name = "muscle_mass_pct")
-    private double muscleMass;
-
-    @ColumnInfo(name = "body_fat_pct")
-    private double bodyFat;
-
-    private String notes;
+    @ColumnInfo(name = "neck_cm")
+    private double neck;
 
     // Empty Constructor
     public Measurement() {}
 
     @Ignore
-    public Measurement(long date, double waist, double hips, double chest,
-                       double muscleMass, double bodyFat, String notes) {
+    public Measurement(long date, double waist, double hips, double chest, double neck) {
         this.date = date;
         this.waist = waist;
         this.hips = hips;
         this.chest = chest;
-        this.muscleMass = muscleMass;
-        this.bodyFat = bodyFat;
-        this.notes = notes;
+        this.neck = neck;
     }
 
     // --- Helper Logic: Waist-to-Hip Ratio (WHR) ---
@@ -84,26 +76,8 @@ public class Measurement implements Serializable {
     public double getChest() { return chest; }
     public void setChest(double chest) { this.chest = chest; }
 
-    public double getMuscleMass() { return muscleMass; }
-    public void setMuscleMass(double muscleMass) { this.muscleMass = muscleMass; }
+    public double getNeck() { return neck; }
+    public void setNeck(double neck) { this.neck = neck; }
 
-    public double getBodyFat() { return bodyFat; }
-    public void setBodyFat(double bodyFat) { this.bodyFat = bodyFat; }
 
-    public String getNotes() { return notes; }
-    public void setNotes(String notes) { this.notes = notes; }
-
-    @Override
-    public String toString() {
-        return "Measurement{" +
-                "id=" + id +
-                ", date=" + date +
-                ", waist=" + waist +
-                ", hips=" + hips +
-                ", chest=" + chest +
-                ", muscleMass=" + muscleMass +
-                ", bodyFat=" + bodyFat +
-                ", notes='" + notes + '\'' +
-                '}';
-    }
 }

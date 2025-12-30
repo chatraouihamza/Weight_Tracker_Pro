@@ -18,4 +18,7 @@ public interface FoodItemDao {
     // Search Query
     @Query("SELECT * FROM food_items WHERE name LIKE '%' || :searchQuery || '%' ORDER BY name ASC")
     LiveData<List<FoodItem>> searchFood(String searchQuery);
+
+    @Query("SELECT * FROM food_items WHERE name = :foodName LIMIT 1")
+    FoodItem getFoodItemByNameSync(String foodName);
 }

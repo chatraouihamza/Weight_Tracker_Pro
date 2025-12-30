@@ -131,6 +131,67 @@ public class HealthCalculator {
         return weightKg / (heightM * heightM);
     }
 
+    public static double calculateWHR(double waist, double hips) {
+        if (hips == 0) return 0;
+        return waist / hips;
+    }
+
+    public static double calculateBodyFat(double waist, double neck, double height, double hips, String gender) {
+        // 1. Basic Validation
+        if (waist <= 0 || height <= 0 || neck <= 0) return 0;
+
+        double bodyFat = 0;
+
+        try {
+            // 2. Case-Insensitive Check
+            // Ensure gender is not null
+            if (gender != null && gender.equalsIgnoreCase("Male")) {
+                // --- MALE FORMULA ---
+                // Restriction: Waist must be larger than Neck
+                if ((waist - neck) <= 0) return 0;
+
+                double logWaistNeck = Math.log10(waist - neck);
+                double logHeight = Math.log10(height);
+
+                // Formula: 495 / (1.0324 - 0.19077(log(W-N)) + 0.15456(log(H))) - 450
+                bodyFat = 495 / (1.0324 - 0.19077 * logWaistNeck + 0.15456 * logHeight) - 450;
+
+            } else {
+                // --- FEMALE FORMULA ---
+                // Default to Female if gender is null or anything else
+                if (hips <= 0) return 0;
+
+                // Restriction: Waist + Hips must be larger than Neck
+                if ((waist + hips - neck) <= 0) return 0;
+
+                double logWaistHipsNeck = Math.log10(waist + hips - neck);
+                double logHeight = Math.log10(height);
+
+                // Formula: 495 / (1.29579 - 0.35004(log(W+H-N)) + 0.22100(log(H))) - 450
+                bodyFat = 495 / (1.29579 - 0.35004 * logWaistHipsNeck + 0.22100 * logHeight) - 450;
+            }
+        } catch (Exception e) {
+            return 0; // Math error
+        }
+
+        // 3. Sanity Check (Cap results between 1% and 70%)
+        if (bodyFat < 1) return 1;
+        if (bodyFat > 70) return 70;
+
+        return bodyFat;
+    }
+
+    /**
+     * Estimate Muscle Mass %.
+     * Scientific Estimation: Muscle is roughly 40-50% of weight, or ~60% of Lean Body Mass.
+     * Formula: (100 - BodyFat) * 0.6
+     */
+    public static double calculateMuscleMassPercentage(double bodyFatPercentage) {
+        if (bodyFatPercentage <= 0 || bodyFatPercentage >= 100) return 0;
+        double leanMassPercentage = 100 - bodyFatPercentage;
+        return leanMassPercentage * 0.6; // Estimation factor
+    }
+
     public static String getBMICategory(double bmi) {
         if (bmi < 18.5) return "Underweight";
         if (bmi < 25) return "Normal";

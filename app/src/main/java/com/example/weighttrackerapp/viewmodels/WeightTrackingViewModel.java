@@ -74,14 +74,12 @@ public class WeightTrackingViewModel extends AndroidViewModel {
         goalRepository.updateGoalsProgress(weight);
     }
 
-    public void addMeasurement(double waist, double hips, double bodyFat) {
-        // Create measurement (using current time)
+    public void addMeasurement(double waist, double hips, double neck) {
         Measurement m = new Measurement();
         m.setDate(System.currentTimeMillis());
         m.setWaist(waist);
         m.setHips(hips);
-        m.setBodyFat(bodyFat);
-        // Note: userId is handled inside the Repository
+        m.setNeck(neck); // Set new field
         measurementRepository.insert(m);
     }
 
