@@ -1,6 +1,7 @@
 package com.example.weighttrackerapp.utils;
 
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 
 public class SessionManager {
@@ -39,7 +40,17 @@ public class SessionManager {
     }
 
     public void logoutUser() {
+        // Clear all data from Shared Preferences
         editor.clear();
         editor.commit();
+
+        // Redirect to Login Activity
+        Intent i = new Intent(context, com.example.weighttrackerapp.activities.LoginActivity.class);
+        // Closing all the Activities
+        i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        // Add new Flag to start new Activity
+        i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+
+        context.startActivity(i);
     }
 }

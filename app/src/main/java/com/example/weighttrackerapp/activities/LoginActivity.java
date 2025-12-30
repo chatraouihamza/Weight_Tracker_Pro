@@ -49,7 +49,9 @@ public class LoginActivity extends AppCompatActivity {
             if (email.isEmpty() || pass.isEmpty()) {
                 Toast.makeText(this, "Please fill all fields", Toast.LENGTH_SHORT).show();
             } else {
-                performLogin(email, pass);
+                // FIX: Hash the password before sending to ViewModel
+                String hashedPass = com.example.weighttrackerapp.utils.SecurityUtils.hashString(pass);
+                performLogin(email, hashedPass);
             }
         });
 
